@@ -2,16 +2,16 @@
 // Database credentials
 $sourceDb = [
     'host' => 'localhost',
-    'user' => 'devhive',
-    'pass' => '2026DIT_BI',
-    'db'   => 'source',
+    'user' => 'if0_39344537',
+    'pass' => 'kaelmejares7',
+    'db'   => 'if0_39344537_source',
     'port' => 3306
 ];
 $destDb = [
     'host' => 'localhost',
-    'user' => 'devhive',
-    'pass' => '2026DIT_BI',
-    'db'   => 'destination',
+    'user' => 'if0_39344537',
+    'pass' => 'kaelmejares7',
+    'db'   => 'if0_39344537_destination',
     'port' => 3306
 ];
 
