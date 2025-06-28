@@ -1,14 +1,14 @@
 <?php
 // Database credentials
 $sourceDb = [
-    'host' => 'localhost',
+    'host' => 'sql300.infinityfree.com',
     'user' => 'if0_39344537',
     'pass' => 'kaelmejares7',
     'db'   => 'if0_39344537_source',
     'port' => 3306
 ];
 $destDb = [
-    'host' => 'localhost',
+    'host' => 'sql300.infinityfree.com',
     'user' => 'if0_39344537',
     'pass' => 'kaelmejares7',
     'db'   => 'if0_39344537_destination',
