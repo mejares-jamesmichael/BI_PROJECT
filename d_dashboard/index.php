@@ -1,11 +1,11 @@
 <?php
-// Database credentials read from Render's Environment Variables
+// Database credentials
 $db = [
-    'host' => getenv('DB_HOST'),
-    'user' => getenv('DB_USER'),
-    'pass' => getenv('DB_PASS'),
-    'db'   => getenv('DB_NAME'),
-    'port' => getenv('DB_PORT')
+    'host' => 'localhost',
+    'user' => 'devhive',
+    'pass' => '2026DIT_BI',
+    'db'   => 'destination',
+    'port' => 3306
 ];
 $conn = new mysqli($db['host'], $db['user'], $db['pass'], $db['db'], $db['port']);
 if ($conn->connect_errno) {
