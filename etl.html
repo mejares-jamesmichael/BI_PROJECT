@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Run ETL Pipeline</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(120deg, #f8fafc 0%, #e0e7ef 100%);
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .etl-card {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1.5px 4px rgba(0,0,0,0.04);
+      padding: 2.5em 2em 2em 2em;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      transition: box-shadow 0.2s;
+    }
+    .etl-card:hover {
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 3px 8px rgba(0,0,0,0.06);
+    }
+    h1 {
+      font-size: 1.6em;
+      margin-bottom: 0.7em;
+      color: #2d3748;
+      letter-spacing: 0.01em;
+    }
+    #runBtn {
+      background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7em 2.2em;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+      transition: background 0.2s, box-shadow 0.2s;
+      margin-bottom: 1.2em;
+    }
+    #runBtn:hover {
+      background: linear-gradient(90deg, #1e40af 0%, #2563eb 100%);
+      box-shadow: 0 4px 16px rgba(37,99,235,0.13);
+    }
+    #result {
+      margin-top: 1em;
+      padding: 1.1em 1em 1em 1em;
+      border-radius: 10px;
+      background: #f1f5f9;
+      color: #334155;
+      min-height: 2.5em;
+      font-size: 1.05em;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      word-break: break-word;
+    }
+    @media (max-width: 500px) {
+      .etl-card {
+        padding: 1.2em 0.5em 1.5em 0.5em;
+        max-width: 98vw;
+      }
+      h1 {
+        font-size: 1.1em;
+      }
+      #runBtn {
+        font-size: 1em;
+        padding: 0.6em 1.2em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="etl-card">
+    <h1>Run Data Pipeline ETL</h1>
+    <button id="runBtn">Run ETL</button>
+    <div id="result"></div>
+  </div>
+  <script>
+    document.getElementById('runBtn').onclick = function() {
+      document.getElementById('result').innerHTML = 'Running ETL...';
+      fetch('pipeline.php')
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById('result').innerHTML = '<b>Status:</b> ' + data.status + '<br><b>Message:</b> ' + data.message;
+        })
+        .catch(e => {
+          document.getElementById('result').innerHTML = 'Error: ' + e;
+        });
+    };
+  </script>
+</body>
+</html> 
