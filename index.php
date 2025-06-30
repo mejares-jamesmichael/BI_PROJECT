@@ -3,35 +3,6 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Database credentials
-$db = [
-    'host' => 'sql300.infinityfree.com',
-    'user' => 'if0_39344537',
-    'pass' => 'kaelmejares7',
-    'db'   => 'if0_39344537_destination',
-    'port' => 3306
-];
-$conn = new mysqli($db['host'], $db['user'], $db['pass'], $db['db'], $db['port']);
-if ($conn->connect_errno) {
-    die('Connect Error: ' . $conn->connect_error);
-}
-$conn->set_charset('utf8mb4');
-
-function getCount($conn, $table) {
-    $res = $conn->query("SELECT COUNT(*) as cnt FROM $table");
-    $row = $res->fetch_assoc();
-    return $row['cnt'];
-}
-
-function getPreview($conn, $table) {
-    $res = $conn->query("SELECT * FROM $table ORDER BY id DESC");
-    $rows = [];
-    while ($row = $res->fetch_assoc()) {
-        $rows[] = $row;
-    }
-    return $rows;
-}
-
 $tables = [
     'customer_analytics' => 'Customer Analytics',
     'employee_performance' => 'Employee Performance',
@@ -40,84 +11,6 @@ $tables = [
     'sales_analytics' => 'Sales Analytics',
 ];
 
-// Prepare chart data for each dashboard chart
-function getChartData($conn, $chart) {
-    switch ($chart) {
-        case 'monthly_sales':
-            // Column chart: Top 12 months by total sales
-            $res = $conn->query("SELECT CONCAT(year, '-', LPAD(month,2,'0')) as ym, SUM(total_sales) as sales FROM sales_analytics GROUP BY year, month ORDER BY year DESC, month DESC LIMIT 12");
-            $labels = [];
-            $data = [];
-            $rows = [];
-            while ($row = $res->fetch_assoc()) {
-                $rows[] = $row;
-            }
-            $rows = array_reverse($rows); // chronological order
-            foreach ($rows as $row) {
-                $labels[] = $row['ym'];
-                $data[] = $row['sales'];
-            }
-            return ['labels' => $labels, 'data' => $data];
-        case 'top_products_pie':
-            // Pie chart: Top 10 products by revenue
-            $res = $conn->query("SELECT product_name, total_revenue FROM product_performance ORDER BY total_revenue DESC LIMIT 10");
-            $labels = [];
-            $data = [];
-            while ($row = $res->fetch_assoc()) {
-                $labels[] = $row['product_name'];
-                $data[] = $row['total_revenue'];
-            }
-            return ['labels' => $labels, 'data' => $data];
-        case 'top_customers_line':
-            // Line chart: Top 10 customers by spending
-            $res = $conn->query("SELECT customer_name, total_spent FROM customer_analytics ORDER BY total_spent DESC LIMIT 10");
-            $labels = [];
-            $data = [];
-            while ($row = $res->fetch_assoc()) {
-                $labels[] = $row['customer_name'];
-                $data[] = $row['total_spent'];
-            }
-            return ['labels' => $labels, 'data' => $data];
-        case 'revenue_by_country_bubble':
-            // Bubble chart: Revenue by country (x=country, y=total_revenue, r=customer_count)
-            $res = $conn->query("SELECT country, SUM(total_revenue) as revenue, SUM(customer_count) as customers FROM geographic_analytics GROUP BY country");
-            $labels = [];
-            $data = [];
-            $i = 0;
-            while ($row = $res->fetch_assoc()) {
-                $labels[] = $row['country'];
-                $data[] = [
-                    'x' => $i++,
-                    'y' => (float)$row['revenue'],
-                    'r' => max(5, sqrt($row['customers'])*2),
-                    'country' => $row['country']
-                ];
-            }
-            return ['labels' => $labels, 'data' => $data];
-        case 'product_performance_bar':
-            // Bar chart: All products by total_quantity_sold
-            $res = $conn->query("SELECT product_name, total_quantity_sold FROM product_performance ORDER BY total_quantity_sold DESC");
-            $labels = [];
-            $data = [];
-            while ($row = $res->fetch_assoc()) {
-                $labels[] = $row['product_name'];
-                $data[] = $row['total_quantity_sold'];
-            }
-            return ['labels' => $labels, 'data' => $data];
-        case 'customer_analytics_donut':
-            // Donut chart: Country breakdown by customer count
-            $res = $conn->query("SELECT country, COUNT(*) as cnt FROM customer_analytics GROUP BY country ORDER BY cnt DESC");
-            $labels = [];
-            $data = [];
-            while ($row = $res->fetch_assoc()) {
-                $labels[] = $row['country'];
-                $data[] = $row['cnt'];
-            }
-            return ['labels' => $labels, 'data' => $data];
-        default:
-            return ['labels' => [], 'data' => []];
-    }
-}
 $dashboardCharts = [
     'monthly_sales' => 'Monthly Sales Analytics',
     'top_products_pie' => 'Top 10 Products by Revenue',
@@ -126,9 +19,10 @@ $dashboardCharts = [
     'product_performance_bar' => 'Product Performance',
     'customer_analytics_donut' => 'Customer Analytics by Country',
 ];
-$chartData = [];
-foreach ($dashboardCharts as $key => $label) {
-    $chartData[$key] = getChartData($conn, $key);
+
+$lastEtlRun = 'Never';
+if (file_exists('last_etl_run.txt')) {
+    $lastEtlRun = file_get_contents('last_etl_run.txt');
 }
 
 ?>
@@ -192,6 +86,43 @@ foreach ($dashboardCharts as $key => $label) {
       margin-bottom: 2em;
       text-align: center;
     }
+    .refresh-button {
+      background: #007bff; /* Blue for refresh */
+      color: #fff;
+      border: 4px solid #0056b3;
+      border-radius: 8px;
+      padding: 0.6em 1.5em;
+      font-size: 0.9em;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #0056b3;
+      transition: background 0.1s, box-shadow 0.1s, transform 0.1s;
+      margin-top: 1em;
+      text-shadow: 1px 1px 0 #000;
+    }
+    .refresh-button:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #0056b3;
+    }
+    .load-button {
+      background: #28a745; /* Green for load */
+      color: #fff;
+      border: 4px solid #1e7e34;
+      border-radius: 8px;
+      padding: 0.6em 1.5em;
+      font-size: 0.9em;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #1e7e34;
+      transition: background 0.1s, box-shadow 0.1s, transform 0.1s;
+      margin-top: 1em;
+      margin-left: 1em; /* Space between refresh and load buttons */
+      text-shadow: 1px 1px 0 #000;
+    }
+    .load-button:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #1e7e34;
+    }
     .summary-cards {
       display: flex;
       flex-wrap: wrap;
@@ -210,6 +141,11 @@ foreach ($dashboardCharts as $key => $label) {
       box-shadow: 0 8px 0 #388e3c;
       border: 4px solid #388e3c;
       transition: transform 0.2s;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      text-align: center;
     }
     .card:hover {
       transform: translateY(-4px);
@@ -224,6 +160,13 @@ foreach ($dashboardCharts as $key => $label) {
       margin: 0.5em 0;
       font-size: 0.8em;
     }
+    .card .count {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #22304a;
+      text-shadow: 2px 2px 0 #fff;
+      margin-top: 0.5em;
+    }
     .chart-container {
       background: #fff;
       border-radius: 16px;
@@ -231,12 +174,86 @@ foreach ($dashboardCharts as $key => $label) {
       margin: 1em;
       box-shadow: 0 8px 0 #388e3c;
       border: 4px solid #388e3c;
+      position: relative; /* For positioning the actions */
     }
-    .chart-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2em;
-      padding: 1em;
+    .chart-actions {
+      margin-top: 1em;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    .chart-actions button {
+      background: #007bff; /* Blue for actions */
+      color: #fff;
+      border: 2px solid #0056b3;
+      border-radius: 5px;
+      padding: 0.5em 1em;
+      font-size: 0.8em;
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .chart-actions button:hover {
+      background: #0056b3;
+    }
+    /* Modal Styles */
+    .modal {
+      display: none; /* Hidden by default */
+      position: fixed; /* Stay in place */
+      z-index: 1000; /* Sit on top */
+      left: 0;
+      top: 0;
+      width: 100%; /* Full width */
+      height: 100%; /* Full height */
+      overflow: auto; /* Enable scroll if needed */
+      background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: auto;
+      padding: 20px;
+      border: 5px solid #388e3c;
+      width: 80%;
+      max-width: 900px;
+      border-radius: 16px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      position: relative;
+      font-family: Arial, sans-serif; /* Use a more readable font for data tables */
+      color: #333;
+    }
+    .close-button {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+    .close-button:hover,
+    .close-button:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .data-table-container {
+      max-height: 500px;
+      overflow-y: auto;
+      margin-top: 1em;
+      border: 1px solid #ddd;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .data-table th,
+    .data-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+      font-size: 0.9em;
+    }
+    .data-table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
     }
     @media (max-width: 768px) {
       .chart-grid {
@@ -258,12 +275,15 @@ foreach ($dashboardCharts as $key => $label) {
       <div class="welcome-banner">
         <h1>Welcome to Your BI Dashboard!</h1>
         <p>Explore your business metrics and analytics</p>
+        <p id="lastEtlRun">Last ETL Run: <?= htmlspecialchars($lastEtlRun) ?></p>
+        <button id="refreshDataBtn" class="refresh-button">Refresh Data</button>
+        <button id="loadDataBtn" class="load-button">Load Data</button>
       </div>
       <div class="summary-cards">
         <?php foreach ($tables as $table => $label): ?>
-        <div class="card">
+        <div class="card" data-table="<?= $table ?>">
           <h3><?= htmlspecialchars($label) ?></h3>
-          <p>Total Records: <?= number_format(getCount($conn, $table)) ?></p>
+          <p class="count"></p>
         </div>
         <?php endforeach; ?>
       </div>
@@ -271,12 +291,29 @@ foreach ($dashboardCharts as $key => $label) {
         <?php foreach ($dashboardCharts as $chartId => $chartLabel): ?>
         <div class="chart-container">
           <canvas id="<?= $chartId ?>"></canvas>
+          <div class="chart-actions">
+            <button class="view-data-btn" data-chart-id="<?= $chartId ?>">View Data</button>
+            <button class="download-csv-btn" data-chart-id="<?= $chartId ?>">Download CSV</button>
+          </div>
         </div>
         <?php endforeach; ?>
       </div>
     </div>
   </div>
+  <!-- The Modal -->
+  <div id="dataModal" class="modal">
+    <!-- Modal content -->
+    <div class="modal-content">
+      <span class="close-button">&times;</span>
+      <h2>Chart Data</h2>
+      <div id="dataTableContainer" class="data-table-container">
+        <!-- Data table will be inserted here by JavaScript -->
+      </div>
+    </div>
+  </div>
   <script>
+    const chartInstances = {}; // To store Chart.js instances
+
     const chartConfigs = {
       monthly_sales: {
         type: 'bar',
@@ -317,7 +354,7 @@ foreach ($dashboardCharts as $key => $label) {
               callbacks: {
                 label: (context) => {
                   const d = context.raw;
-                  return `${d.country}: Revenue: $${d.y.toFixed(2)}, Size ~ Customer Count`;
+                  return `${d.country}: Revenue: ${d.y.toFixed(2)}, Size ~ Customer Count`;
                 }
               }
             }
@@ -349,28 +386,183 @@ foreach ($dashboardCharts as $key => $label) {
       }
     };
 
-    const chartData = <?= json_encode($chartData) ?>;
+    async function fetchAndRenderData() {
+      try {
+        const response = await fetch('get_chart_data.php');
+        const data = await response.json();
 
-    Object.entries(chartConfigs).forEach(([chartId, config]) => {
-      const ctx = document.getElementById(chartId).getContext('2d');
-      const data = chartData[chartId];
-      
-      new Chart(ctx, {
-        type: config.type,
-        data: {
-          labels: data.labels,
-          datasets: [{
-            label: chartId,
-            data: data.data,
-            backgroundColor: [
-              '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-              '#FF9F40', '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'
-            ],
-            borderColor: '#fff',
-            borderWidth: 2
-          }]
-        },
-        options: config.options
+        if (data.error) {
+          console.error('Error fetching data:', data.error);
+          return;
+        }
+
+        // Update summary cards
+        for (const table in data.summaryCounts) {
+          const countElement = document.querySelector(`.card[data-table="${table}"] .count`);
+          if (countElement) {
+            countElement.textContent = data.summaryCounts[table].toLocaleString();
+          }
+        }
+
+        // Update last ETL run timestamp
+        document.getElementById('lastEtlRun').textContent = 'Last ETL Run: ' + data.lastEtlRun;
+
+        // Update charts
+        Object.entries(chartConfigs).forEach(([chartId, config]) => {
+          const chartData = data.chartData[chartId];
+          const ctx = document.getElementById(chartId).getContext('2d');
+
+          if (chartInstances[chartId]) {
+            // Update existing chart
+            chartInstances[chartId].data.labels = chartData.labels;
+            chartInstances[chartId].data.datasets[0].data = chartData.data;
+            chartInstances[chartId].update();
+          } else {
+            // Create new chart
+            chartInstances[chartId] = new Chart(ctx, {
+              type: config.type,
+              data: {
+                labels: chartData.labels,
+                datasets: [{
+                  label: chartId,
+                  data: chartData.data,
+                  backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                    '#FF9F40', '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'
+                  ],
+                  borderColor: '#fff',
+                  borderWidth: 2
+                }]
+              },
+              options: config.options
+            });
+          }
+        });
+
+      } catch (e) {
+        console.error('Failed to fetch or render data:', e);
+      }
+    }
+
+    // Initial data load
+    fetchAndRenderData();
+
+    // Refresh data every 30 seconds (adjust as needed)
+    setInterval(fetchAndRenderData, 1000);
+
+    document.getElementById('refreshDataBtn').onclick = function() {
+      fetchAndRenderData(); // Manual refresh
+    };
+
+    document.getElementById('loadDataBtn').onclick = async function() {
+      if (confirm('Are you sure you want to load data from the source database? This will overwrite existing data.')) {
+        try {
+          const response = await fetch('load_data.php');
+          const result = await response.json();
+          alert('Load Data Status: ' + result.status + '\nMessage: ' + result.message);
+          fetchAndRenderData(); // Refresh dashboard after loading data
+        } catch (e) {
+          console.error('Error loading data:', e);
+          alert('Error loading data. Check console for details.');
+        }
+      }
+    };
+
+    // Modal and Data Table Logic
+    const modal = document.getElementById('dataModal');
+    const span = document.getElementsByClassName('close-button')[0];
+    const dataTableContainer = document.getElementById('dataTableContainer');
+
+    // When the user clicks on <span> (x), close the modal
+    span.onclick = function() {
+      modal.style.display = 'none';
+    }
+
+    // When the user clicks anywhere outside of the modal, close it
+    window.onclick = function(event) {
+      if (event.target == modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    document.querySelectorAll('.view-data-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const chartId = this.dataset.chartId;
+        // Get the current data from the chart instance
+        const data = chartInstances[chartId].data.datasets[0].data;
+        const labels = chartInstances[chartId].data.labels;
+
+        let tableHtml = '<table class="data-table"><thead><tr>';
+
+        // Determine headers based on chart type
+        if (chartId === 'revenue_by_country_bubble') {
+          tableHtml += '<th>Country</th><th>Revenue</th><th>Customer Count</th>';
+        } else if (labels && labels.length > 0) {
+          tableHtml += `<th>${chartConfigs[chartId].options.plugins.title.text.split(' by ')[0]}</th><th>Value</th>`;
+        } else {
+          tableHtml += '<th>Data</th>';
+        }
+        tableHtml += '</tr></thead><tbody>';
+
+        // Populate rows
+        if (chartId === 'revenue_by_country_bubble') {
+          labels.forEach((label, index) => {
+            const item = data[index];
+            tableHtml += `<tr><td>${item.country}</td><td>${item.y.toFixed(2)}</td><td>${Math.round(item.r * item.r / 4)}</td></tr>`;
+          });
+        } else {
+          labels.forEach((label, index) => {
+            tableHtml += `<tr><td>${label}</td><td>${data[index]}</td></tr>`;
+          });
+        }
+        
+        tableHtml += '</tbody></table>';
+        dataTableContainer.innerHTML = tableHtml;
+        modal.style.display = 'flex'; // Use flex to center the modal
+      });
+    });
+
+    document.querySelectorAll('.download-csv-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const chartId = this.dataset.chartId;
+        // Get the current data from the chart instance
+        const data = chartInstances[chartId].data.datasets[0].data;
+        const labels = chartInstances[chartId].data.labels;
+
+        let csvContent = '';
+
+        // Determine headers for CSV
+        if (chartId === 'revenue_by_country_bubble') {
+          csvContent += 'Country,Revenue,Customer Count\n';
+        } else if (labels && labels.length > 0) {
+          csvContent += `${chartConfigs[chartId].options.plugins.title.text.split(' by ')[0]},Value\n`;
+        } else {
+          csvContent += 'Data\n';
+        }
+
+        // Populate CSV rows
+        if (chartId === 'revenue_by_country_bubble') {
+          labels.forEach((label, index) => {
+            const item = data[index];
+            csvContent += `${item.country},${item.y.toFixed(2)},${Math.round(item.r * item.r / 4)}\n`;
+          });
+        } else {
+          labels.forEach((label, index) => {
+            csvContent += `${label},${data[index]}\n`;
+          });
+        }
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (link.download !== undefined) { // feature detection
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          link.setAttribute('download', `${chartId}_data.csv`);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
       });
     });
   </script>

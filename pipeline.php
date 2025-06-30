@@ -213,6 +213,10 @@ while ($row = $geoRes->fetch_assoc()) {
 
 $src->close();
 $dst->close();
+
+// Record the last ETL run timestamp
+file_put_contents('last_etl_run.txt', date('Y-m-d H:i:s'));
+
 header('Content-Type: application/json');
-echo json_encode(['status' => 'success', 'message' => 'ETL completed for customer_analytics']);
+echo json_encode(['status' => 'success', 'message' => 'ETL completed successfully!']);
 exit; 

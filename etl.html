@@ -2,96 +2,148 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Run ETL Pipeline</title>
+  <title>ETL Pipeline Control</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      background: linear-gradient(120deg, #f8fafc 0%, #e0e7ef 100%);
-      min-height: 100vh;
+      font-family: 'Press Start 2P', monospace;
+      background: linear-gradient(180deg, #87ceeb 0%, #b4eaff 100%);
+      background-image: url('https://svgshare.com/i/13dF.svg'); /* cloud SVG as repeating bg */
+      background-repeat: repeat-x;
+      background-size: auto 180px;
       margin: 0;
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      color: #22304a;
     }
     .etl-card {
-      background: #fff;
-      border-radius: 18px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1.5px 4px rgba(0,0,0,0.04);
+      background: #fffbe6;
+      border-radius: 24px;
+      box-shadow: 0 8px 0 #388e3c;
+      border: 4px solid #388e3c;
       padding: 2.5em 2em 2em 2em;
-      max-width: 400px;
+      max-width: 450px;
       width: 100%;
       text-align: center;
-      transition: box-shadow 0.2s;
+      transition: transform 0.2s;
     }
     .etl-card:hover {
-      box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 3px 8px rgba(0,0,0,0.06);
+      transform: translateY(-4px);
     }
     h1 {
-      font-size: 1.6em;
-      margin-bottom: 0.7em;
-      color: #2d3748;
-      letter-spacing: 0.01em;
+      font-size: 1.5em;
+      margin-bottom: 0.5em;
+      color: #388e3c;
+      text-shadow: 2px 2px 0 #fff;
+    }
+    p {
+      font-size: 0.8em;
+      margin-bottom: 1.5em;
+      color: #22304a;
     }
     #runBtn {
-      background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%);
+      background: #ff0000; /* Retro Red */
       color: #fff;
-      border: none;
+      border: 4px solid #8b0000; /* Darker Red Border */
       border-radius: 8px;
-      padding: 0.7em 2.2em;
+      padding: 0.8em 2.5em;
       font-size: 1.1em;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(37,99,235,0.08);
-      transition: background 0.2s, box-shadow 0.2s;
-      margin-bottom: 1.2em;
+      box-shadow: 0 4px 0 #8b0000;
+      transition: background 0.1s, box-shadow 0.1s, transform 0.1s;
+      margin-bottom: 1.5em;
+      text-shadow: 2px 2px 0 #000;
     }
-    #runBtn:hover {
-      background: linear-gradient(90deg, #1e40af 0%, #2563eb 100%);
-      box-shadow: 0 4px 16px rgba(37,99,235,0.13);
+    #runBtn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #8b0000;
     }
     #result {
       margin-top: 1em;
-      padding: 1.1em 1em 1em 1em;
+      padding: 1.2em;
       border-radius: 10px;
-      background: #f1f5f9;
-      color: #334155;
-      min-height: 2.5em;
-      font-size: 1.05em;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      background: #e0e0e0; /* Light grey for status */
+      color: #333;
+      min-height: 3em;
+      font-size: 0.9em;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
       word-break: break-word;
+      text-align: left;
+      border: 2px dashed #999;
+    }
+    #lastRun {
+      font-size: 0.75em;
+      color: #555;
+      margin-top: 1em;
+    }
+    .dashboard-link {
+      display: block;
+      margin-top: 2em;
+      font-size: 0.9em;
+      color: #2563eb;
+      text-decoration: none;
+      border-bottom: 2px dotted #2563eb;
+      padding-bottom: 2px;
+      transition: color 0.2s;
+    }
+    .dashboard-link:hover {
+      color: #1e40af;
     }
     @media (max-width: 500px) {
       .etl-card {
-        padding: 1.2em 0.5em 1.5em 0.5em;
-        max-width: 98vw;
+        padding: 1.5em 1em;
+        max-width: 95vw;
       }
       h1 {
-        font-size: 1.1em;
+        font-size: 1.2em;
       }
       #runBtn {
         font-size: 1em;
-        padding: 0.6em 1.2em;
+        padding: 0.7em 2em;
       }
     }
   </style>
 </head>
 <body>
   <div class="etl-card">
-    <h1>Run Data Pipeline ETL</h1>
-    <button id="runBtn">Run ETL</button>
-    <div id="result"></div>
+    <h1>ETL Pipeline Control</h1>
+    <p>Trigger the data extraction, transformation, and loading process.</p>
+    <button id="runBtn">Run ETL Now!</button>
+    <div id="result">
+      <p>Status: Idle</p>
+    </div>
+    <p id="lastRun">Last Run: Never</p>
+    <a href="index.php" class="dashboard-link">View Dashboard</a>
   </div>
   <script>
     document.getElementById('runBtn').onclick = function() {
-      document.getElementById('result').innerHTML = 'Running ETL...';
+      const resultDiv = document.getElementById('result');
+      const lastRunP = document.getElementById('lastRun');
+      resultDiv.innerHTML = '<p>Status: Running ETL...</p>';
+      resultDiv.style.background = '#fffacd'; /* Light yellow for running */
+      resultDiv.style.color = '#8a6d3b';
+
       fetch('pipeline.php')
         .then(r => r.json())
         .then(data => {
-          document.getElementById('result').innerHTML = '<b>Status:</b> ' + data.status + '<br><b>Message:</b> ' + data.message;
+          resultDiv.innerHTML = '<b>Status:</b> ' + data.status + '<br><b>Message:</b> ' + data.message;
+          if (data.status === 'success') {
+            resultDiv.style.background = '#d4edda'; /* Light green for success */
+            resultDiv.style.color = '#155724';
+            lastRunP.innerHTML = 'Last Run: ' + new Date().toLocaleString();
+          } else {
+            resultDiv.style.background = '#f8d7da'; /* Light red for error */
+            resultDiv.style.color = '#721c24';
+          }
         })
         .catch(e => {
-          document.getElementById('result').innerHTML = 'Error: ' + e;
+          resultDiv.innerHTML = 'Error: ' + e.message;
+          resultDiv.style.background = '#f8d7da'; /* Light red for error */
+          resultDiv.style.color = '#721c24';
         });
     };
   </script>
