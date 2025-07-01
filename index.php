@@ -18,6 +18,7 @@ $dashboardCharts = [
     'revenue_by_country_bubble' => 'Revenue by Country',
     'product_performance_bar' => 'Product Performance',
     'customer_analytics_donut' => 'Customer Analytics by Country',
+    'sales_by_employee' => 'Sales by Employee',
 ];
 
 $lastEtlRun = 'Never';
@@ -135,7 +136,7 @@ if (file_exists('last_etl_run.txt')) {
       color: #22304a;
       border-radius: 16px;
       padding: 1.5em;
-      min-width: 280px;
+      min-width: 220px;
       max-width: 400px;
       flex: 1;
       box-shadow: 0 8px 0 #388e3c;
@@ -170,11 +171,13 @@ if (file_exists('last_etl_run.txt')) {
     .chart-container {
       background: #fff;
       border-radius: 16px;
-      padding: 1.5em;
-      margin: 1em;
+      padding: 1.8em;
+      margin: 1.2em;
       box-shadow: 0 8px 0 #388e3c;
       border: 4px solid #388e3c;
       position: relative; /* For positioning the actions */
+      flex-basis: 45%;
+      min-width: 400px;
     }
     .chart-actions {
       margin-top: 1em;
@@ -263,6 +266,43 @@ if (file_exists('last_etl_run.txt')) {
         min-width: unset;
       }
     }
+    @media (max-width: 576px) {
+      .summary-cards {
+        gap: 1em;
+      }
+      .card {
+        padding: 1em;
+      }
+      .card h3 {
+        font-size: 0.9em;
+      }
+      .card .count {
+        font-size: 2em;
+      }
+      .welcome-banner {
+        padding: 1.5em 0.5em 0.5em 0.5em;
+      }
+      .welcome-banner h1 {
+        font-size: 1.2em;
+      }
+    }
+    .error-message {
+        background: #ffebee;
+        color: #c62828;
+        padding: 1em;
+        margin: 1em;
+        border-radius: 8px;
+        text-align: center;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 0.8em;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -287,7 +327,7 @@ if (file_exists('last_etl_run.txt')) {
         </div>
         <?php endforeach; ?>
       </div>
-      <div class="chart-grid">
+      <div class="chart-grid" style="display: flex; flex-wrap: wrap; justify-content: center;">
         <?php foreach ($dashboardCharts as $chartId => $chartLabel): ?>
         <div class="chart-container">
           <canvas id="<?= $chartId ?>"></canvas>
@@ -319,7 +359,21 @@ if (file_exists('last_etl_run.txt')) {
         type: 'bar',
         options: {
           plugins: {
-            title: { display: true, text: 'Monthly Sales Analytics' }
+            title: { display: true, text: 'Monthly Sales Analytics' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.y !== null) {
+                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                  }
+                  return label;
+                }
+              }
+            }
           },
           scales: {
             y: { beginAtZero: true }
@@ -330,7 +384,23 @@ if (file_exists('last_etl_run.txt')) {
         type: 'pie',
         options: {
           plugins: {
-            title: { display: true, text: 'Top 10 Products by Revenue' }
+            title: { display: true, text: 'Top 10 Products by Revenue' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed !== null) {
+                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    const percentage = (context.parsed / total * 100).toFixed(2) + '%';
+                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed) + ` (${percentage})`;
+                  }
+                  return label;
+                }
+              }
+            }
           }
         }
       },
@@ -338,7 +408,21 @@ if (file_exists('last_etl_run.txt')) {
         type: 'line',
         options: {
           plugins: {
-            title: { display: true, text: 'Top Customers by Spending' }
+            title: { display: true, text: 'Top Customers by Spending' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.y !== null) {
+                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                  }
+                  return label;
+                }
+              }
+            }
           },
           scales: {
             y: { beginAtZero: true }
@@ -348,6 +432,15 @@ if (file_exists('last_etl_run.txt')) {
       revenue_by_country_bubble: {
         type: 'bubble',
         options: {
+          onClick: function(evt) {
+            const points = chartInstances['revenue_by_country_bubble'].getElementsAtEventForMode(evt, 'point', { intersect: true }, true);
+            if (points.length) {
+              const firstPoint = points[0];
+              const label = chartInstances['revenue_by_country_bubble'].data.labels[firstPoint.index];
+              const country = chartInstances['revenue_by_country_bubble'].data.datasets[0].data[firstPoint.index].country;
+              window.location.href = `index.php?country=${country}`;
+            }
+          },
           plugins: {
             title: { display: true, text: 'Revenue by Country' },
             tooltip: {
@@ -369,10 +462,21 @@ if (file_exists('last_etl_run.txt')) {
         type: 'bar',
         options: {
           plugins: {
-            title: { display: true, text: 'Product Performance' }
-          },
-          scales: {
-            y: { beginAtZero: true }
+            title: { display: true, text: 'Product Performance' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.y !== null) {
+                    label += context.parsed.y + ' units';
+                  }
+                  return label;
+                }
+              }
+            }
           }
         }
       },
@@ -380,20 +484,70 @@ if (file_exists('last_etl_run.txt')) {
         type: 'doughnut',
         options: {
           plugins: {
-            title: { display: true, text: 'Customer Analytics by Country' }
+            title: { display: true, text: 'Customer Analytics by Country' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed !== null) {
+                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    const percentage = (context.parsed / total * 100).toFixed(2) + '%';
+                    label += context.parsed + ` (${percentage})`;
+                  }
+                  return label;
+                }
+              }
+            }
+          }
+        }
+      },
+      sales_by_employee: {
+        type: 'bar',
+        options: {
+          indexAxis: 'y',
+          plugins: {
+            title: { display: true, text: 'Sales by Employee' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.x !== null) {
+                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.x);
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { beginAtZero: true }
           }
         }
       }
     };
 
     async function fetchAndRenderData() {
-      try {
-        const response = await fetch('get_chart_data.php');
-        const data = await response.json();
+      let fetchUrl = 'get_chart_data.php';
 
+      try {
+        const response = await fetch(fetchUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Server didn't return JSON!");
+        }
+        
+        const data = await response.json();
         if (data.error) {
-          console.error('Error fetching data:', data.error);
-          return;
+          throw new Error(data.error);
         }
 
         // Update summary cards
@@ -405,13 +559,30 @@ if (file_exists('last_etl_run.txt')) {
         }
 
         // Update last ETL run timestamp
-        document.getElementById('lastEtlRun').textContent = 'Last ETL Run: ' + data.lastEtlRun;
+        const lastEtlElement = document.getElementById('lastEtlRun');
+        if (lastEtlElement && data.lastEtlRun) {
+          lastEtlElement.textContent = 'Last ETL Run: ' + data.lastEtlRun;
+        }
 
         // Update charts
+        if (!data.chartData) {
+          throw new Error('No chart data received from server');
+        }
+
         Object.entries(chartConfigs).forEach(([chartId, config]) => {
           const chartData = data.chartData[chartId];
-          const ctx = document.getElementById(chartId).getContext('2d');
+          if (!chartData) {
+            console.warn(`No data received for chart: ${chartId}`);
+            return;
+          }
 
+          const canvas = document.getElementById(chartId);
+          if (!canvas) {
+            console.warn(`Canvas not found for chart: ${chartId}`);
+            return;
+          }
+
+          const ctx = canvas.getContext('2d');
           if (chartInstances[chartId]) {
             // Update existing chart
             chartInstances[chartId].data.labels = chartData.labels;
@@ -428,7 +599,7 @@ if (file_exists('last_etl_run.txt')) {
                   data: chartData.data,
                   backgroundColor: [
                     '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-                    '#FF9F40', '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'
+                    '#FF9F40', '#E7E9ED', '#7FFFD4', '#F08080', '#20B2AA'
                   ],
                   borderColor: '#fff',
                   borderWidth: 2
@@ -439,8 +610,18 @@ if (file_exists('last_etl_run.txt')) {
           }
         });
 
-      } catch (e) {
-        console.error('Failed to fetch or render data:', e);
+      } catch (error) {
+        console.error('Failed to fetch or render data:', error);
+        // Display error to user
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = `Error: ${error.message}`;
+        
+        // Insert error message after the welcome banner
+        const welcomeBanner = document.querySelector('.welcome-banner');
+        if (welcomeBanner && !document.querySelector('.error-message')) {
+          welcomeBanner.insertAdjacentElement('afterend', errorDiv);
+        }
       }
     }
 
